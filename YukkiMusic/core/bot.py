@@ -33,8 +33,9 @@ class YukkiBot(Client):
         get_me = await self.get_me()
         self.username = get_me.username
         self.id = get_me.id
+        # Try to send message to log group, but don't exit if it fails
+        # The bot can still work without log group access
         try:
-            # Try to send message directly - this is the most reliable check
             await self.send_message(
                 config.LOG_GROUP_ID, "Bot Started"
             )
@@ -42,58 +43,55 @@ class YukkiBot(Client):
         except ValueError as e:
             error_msg = str(e)
             if "Peer id invalid" in error_msg or "peer id invalid" in error_msg.lower():
-                LOGGER(__name__).error(
-                    f"Invalid or inaccessible LOG_GROUP_ID: {config.LOG_GROUP_ID}\n"
-                    "This usually means:\n"
-                    "1. The bot has never interacted with this chat/channel before\n"
-                    "2. The bot is not a member of the group/channel\n"
-                    "3. The LOG_GROUP_ID is incorrect\n\n"
-                    "Solutions:\n"
+                LOGGER(__name__).warning(
+                    f"⚠️  Cannot access log group/channel (ID: {config.LOG_GROUP_ID})\n"
+                    "The bot will continue running, but logging to the group will be disabled.\n"
+                    "To fix this:\n"
                     "1. Make sure the bot is added to the group/channel\n"
                     "2. Send a message in the group/channel using the bot (e.g., /start)\n"
                     "3. Verify the LOG_GROUP_ID is correct (should start with -100 for supergroups)\n"
                     "4. For channels, make sure the bot is added as an admin"
                 )
             else:
-                LOGGER(__name__).error(
-                    f"ValueError when accessing log group/channel: {e}"
+                LOGGER(__name__).warning(
+                    f"⚠️  ValueError when accessing log group/channel: {e}\n"
+                    "The bot will continue running without log group access."
                 )
-            sys.exit(1)
         except PeerIdInvalid:
-            LOGGER(__name__).error(
-                f"Invalid LOG_GROUP_ID: {config.LOG_GROUP_ID}\n"
-                "Please verify the ID is correct in your .env file."
+            LOGGER(__name__).warning(
+                f"⚠️  Invalid LOG_GROUP_ID: {config.LOG_GROUP_ID}\n"
+                "Please verify the ID is correct in your .env file.\n"
+                "The bot will continue running without log group access."
             )
-            sys.exit(1)
         except ChannelPrivate:
-            LOGGER(__name__).error(
-                f"Bot is not a member of the log group/channel (ID: {config.LOG_GROUP_ID}).\n"
-                "Please add the bot to the group/channel first."
+            LOGGER(__name__).warning(
+                f"⚠️  Bot is not a member of the log group/channel (ID: {config.LOG_GROUP_ID}).\n"
+                "Please add the bot to the group/channel to enable logging.\n"
+                "The bot will continue running without log group access."
             )
-            sys.exit(1)
         except ChatAdminRequired:
-            LOGGER(__name__).error(
-                "Bot needs admin permissions to send messages in the log group/channel.\n"
-                "Please promote the bot as admin with permission to send messages."
+            LOGGER(__name__).warning(
+                "⚠️  Bot needs admin permissions to send messages in the log group/channel.\n"
+                "Please promote the bot as admin with permission to send messages.\n"
+                "The bot will continue running without log group access."
             )
-            sys.exit(1)
         except UserNotParticipant:
-            LOGGER(__name__).error(
-                "Bot is not a participant in the log group/channel.\n"
-                "Please add the bot to the group/channel first."
+            LOGGER(__name__).warning(
+                "⚠️  Bot is not a participant in the log group/channel.\n"
+                "Please add the bot to the group/channel to enable logging.\n"
+                "The bot will continue running without log group access."
             )
-            sys.exit(1)
         except Exception as e:
-            LOGGER(__name__).error(
-                f"Failed to send message to log group/channel: {type(e).__name__}: {e}\n"
-                "Please ensure:\n"
+            LOGGER(__name__).warning(
+                f"⚠️  Failed to send message to log group/channel: {type(e).__name__}: {e}\n"
+                "The bot will continue running without log group access.\n"
+                "To enable logging, ensure:\n"
                 "1. Bot is added to the log group/channel\n"
                 "2. Bot is promoted as admin (if it's a group)\n"
                 "3. Bot has permission to send messages\n"
                 "4. LOG_GROUP_ID is correct (should start with -100 for supergroups)\n"
                 "5. The bot has interacted with the chat at least once before"
             )
-            sys.exit(1)
         if config.SET_CMDS == str(True):
             try:
                 await self.set_bot_commands(
@@ -113,28 +111,20 @@ class YukkiBot(Client):
                 pass
         else:
             pass
+        # Check admin status, but don't exit if it fails
         try:
             a = await self.get_chat_member(config.LOG_GROUP_ID, self.id)
             if a.status != "administrator":
-                LOGGER(__name__).error(
-                    "Bot is not an administrator in the log group. "
-                    "Please promote the bot as admin in the logger group/channel."
+                LOGGER(__name__).warning(
+                    "⚠️  Bot is not an administrator in the log group. "
+                    "Please promote the bot as admin in the logger group/channel for full functionality."
                 )
-                sys.exit(1)
         except Exception as e:
-            LOGGER(__name__).error(
-                f"Error checking admin status: {type(e).__name__}: {e}\n"
-                "Note: If LOG_GROUP_ID is a channel, admin check may fail. "
-                "The bot should still work if it can send messages."
+            # Admin check is optional, just log a warning
+            LOGGER(__name__).debug(
+                f"Could not check admin status in log group: {type(e).__name__}: {e}\n"
+                "This is not critical - the bot will continue running."
             )
-            # Don't exit for channels, as they might not need admin status
-            # Only exit if it's clearly a group that needs admin
-            try:
-                chat = await self.get_chat(config.LOG_GROUP_ID)
-                if chat.type in ["group", "supergroup"]:
-                    sys.exit(1)
-            except:
-                pass
         if get_me.last_name:
             self.name = get_me.first_name + " " + get_me.last_name
         else:
