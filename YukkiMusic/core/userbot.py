@@ -22,30 +22,35 @@ assistantids = []
 class Userbot(Client):
     def __init__(self):
         self.one = Client(
+            "assistant1",
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=config.STRING1,
             no_updates=True,
         )
         self.two = Client(
+            "assistant2",
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=config.STRING2,
             no_updates=True,
         )
         self.three = Client(
+            "assistant3",
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=config.STRING3,
             no_updates=True,
         )
         self.four = Client(
+            "assistant4",
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=config.STRING4,
             no_updates=True,
         )
         self.five = Client(
+            "assistant5",
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             session_string=config.STRING5,
