@@ -12,6 +12,7 @@ import importlib
 import sys
 
 from pyrogram import idle
+from pyrogram.errors import BadMsgNotification
 from pytgcalls.exceptions import NoActiveGroupCall
 
 import config
@@ -52,7 +53,29 @@ async def init():
             BANNED_USERS.add(user_id)
     except:
         pass
-    await app.start()
+    # Handle time synchronization issues
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            await app.start()
+            break
+        except BadMsgNotification as e:
+            if "[16]" in str(e) or "msg_id is too low" in str(e).lower():
+                LOGGER("YukkiMusic").warning(
+                    f"Time synchronization error (attempt {attempt + 1}/{max_retries}). "
+                    "Please sync your system time with NTP. Retrying..."
+                )
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2)
+                    continue
+                else:
+                    LOGGER("YukkiMusic").error(
+                        "Failed to start bot due to time synchronization issues. "
+                        "Please sync your system time using: sudo timedatectl set-ntp true"
+                    )
+                    sys.exit(1)
+            else:
+                raise
     for all_module in ALL_MODULES:
         importlib.import_module("YukkiMusic.plugins" + all_module)
     LOGGER("Yukkimusic.plugins").info(
