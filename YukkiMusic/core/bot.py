@@ -34,40 +34,52 @@ class YukkiBot(Client):
         self.username = get_me.username
         self.id = get_me.id
         try:
-            # First, check if bot is in the group/channel
-            try:
-                chat = await self.get_chat(config.LOG_GROUP_ID)
-                LOGGER(__name__).info(f"Log group/channel found: {chat.title} (ID: {config.LOG_GROUP_ID})")
-            except PeerIdInvalid:
-                LOGGER(__name__).error(
-                    f"Invalid LOG_GROUP_ID: {config.LOG_GROUP_ID}. Please check your .env file."
-                )
-                sys.exit(1)
-            except ChannelPrivate:
-                LOGGER(__name__).error(
-                    f"Bot is not a member of the log group/channel (ID: {config.LOG_GROUP_ID}). "
-                    "Please add the bot to the group/channel first."
-                )
-                sys.exit(1)
-            except Exception as e:
-                LOGGER(__name__).error(
-                    f"Error accessing log group/channel: {type(e).__name__}: {e}"
-                )
-                sys.exit(1)
-            
-            # Try to send message
+            # Try to send message directly - this is the most reliable check
             await self.send_message(
                 config.LOG_GROUP_ID, "Bot Started"
             )
+            LOGGER(__name__).info(f"Successfully sent message to log group/channel (ID: {config.LOG_GROUP_ID})")
+        except ValueError as e:
+            error_msg = str(e)
+            if "Peer id invalid" in error_msg or "peer id invalid" in error_msg.lower():
+                LOGGER(__name__).error(
+                    f"Invalid or inaccessible LOG_GROUP_ID: {config.LOG_GROUP_ID}\n"
+                    "This usually means:\n"
+                    "1. The bot has never interacted with this chat/channel before\n"
+                    "2. The bot is not a member of the group/channel\n"
+                    "3. The LOG_GROUP_ID is incorrect\n\n"
+                    "Solutions:\n"
+                    "1. Make sure the bot is added to the group/channel\n"
+                    "2. Send a message in the group/channel using the bot (e.g., /start)\n"
+                    "3. Verify the LOG_GROUP_ID is correct (should start with -100 for supergroups)\n"
+                    "4. For channels, make sure the bot is added as an admin"
+                )
+            else:
+                LOGGER(__name__).error(
+                    f"ValueError when accessing log group/channel: {e}"
+                )
+            sys.exit(1)
+        except PeerIdInvalid:
+            LOGGER(__name__).error(
+                f"Invalid LOG_GROUP_ID: {config.LOG_GROUP_ID}\n"
+                "Please verify the ID is correct in your .env file."
+            )
+            sys.exit(1)
+        except ChannelPrivate:
+            LOGGER(__name__).error(
+                f"Bot is not a member of the log group/channel (ID: {config.LOG_GROUP_ID}).\n"
+                "Please add the bot to the group/channel first."
+            )
+            sys.exit(1)
         except ChatAdminRequired:
             LOGGER(__name__).error(
-                "Bot needs admin permissions to send messages in the log group/channel. "
+                "Bot needs admin permissions to send messages in the log group/channel.\n"
                 "Please promote the bot as admin with permission to send messages."
             )
             sys.exit(1)
         except UserNotParticipant:
             LOGGER(__name__).error(
-                "Bot is not a participant in the log group/channel. "
+                "Bot is not a participant in the log group/channel.\n"
                 "Please add the bot to the group/channel first."
             )
             sys.exit(1)
@@ -78,7 +90,8 @@ class YukkiBot(Client):
                 "1. Bot is added to the log group/channel\n"
                 "2. Bot is promoted as admin (if it's a group)\n"
                 "3. Bot has permission to send messages\n"
-                "4. LOG_GROUP_ID is correct (should start with -100 for supergroups)"
+                "4. LOG_GROUP_ID is correct (should start with -100 for supergroups)\n"
+                "5. The bot has interacted with the chat at least once before"
             )
             sys.exit(1)
         if config.SET_CMDS == str(True):
